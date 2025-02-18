@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enhanced Web Scraper</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <style>
+    body {
+      background-color: #f3f4f6;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      text-align: left;
+      padding: 12px;
+    }
+    thead th {
+      background-color: #4a5568;
+      color: white;
+      font-weight: bold;
+    }
+    tbody tr:nth-child(odd) {
+      background-color: #f9fafb;
+    }
+    tbody tr:nth-child(even) {
+      background-color: #edf2f7;
+    }
+    tbody tr:hover {
+      background-color: #cbd5e0;
+      transition: background-color 0.3s ease; 
+    }
+    .deleteColumnBtn {
+      font-size: 12px;
+    }
+
+    @media (max-width: 768px) {
+      table, thead, tbody, th, td, tr {
+        display: block;
+      }
+      thead tr {
+        display: none;
+      }
+      tr {
+        margin-bottom: 15px;
+      }
+      td {
+        text-align: right;
+        padding-left: 50%;
+        position: relative;
+      }
+      td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 0;
+        width: 50%;
+        padding-left: 15px;
+        font-weight: bold;
+        text-align: left;
+      }
+    }
+
+    button {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="container mx-auto mt-8">
+    <h1 class="text-3xl font-bold text-center mb-6">Amazon Web Scraper</h1>
+
+    <div class="mb-6">
+      <input id="searchBar" class="w-full p-4 border rounded-md" type="text" placeholder="Search products...">
+    </div>
+
+    <div class="flex justify-between items-center mb-6">
+      <button id="pasteBtn" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">Paste HTML</button>
+      <div class="flex space-x-4 items-center">
+        <button id="parseBtn" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Scrape</button>
+        <input id="csvFileName" class="border rounded-md px-3 py-2" type="text" placeholder="CSV filename (e.g., products.csv)">
+        <button id="downloadCsv" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600">Download CSV</button>
+      </div>
+    </div>
+
+    <div class="mb-6">
+      <textarea id="htmlInput" rows="6" class="w-full p-4 border rounded-md" placeholder="Paste HTML code here..."></textarea>
+    </div>
+
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+      <table id="resultsTable" class="table-auto border-collapse">
+        <thead>
+          <tr>
+            <th class="border-b-2">Name <button class="deleteColumnBtn bg-red-500 text-white px-2 py-1 rounded ml-2" data-column="name">Delete</button></th>
+            <th class="border-b-2">Stars <button class="deleteColumnBtn bg-red-500 text-white px-2 py-1 rounded ml-2" data-column="stars">Delete</button></th>
+            <th class="border-b-2">Price <button class="deleteColumnBtn bg-red-500 text-white px-2 py-1 rounded ml-2" data-column="price">Delete</button></th>
+            <th class="border-b-2">Image URL <button class="deleteColumnBtn bg-red-500 text-white px-2 py-1 rounded ml-2" data-column="image">Delete</button></th>
+            <th class="border-b-2">URL <button class="deleteColumnBtn bg-red-500 text-white px-2 py-1 rounded ml-2" data-column="url">Delete</button></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const amazonBaseUrl = "https://www.amazon.com";
+
+    document.getElementById("pasteBtn").addEventListener("click", () => {
+      navigator.clipboard.readText().then(text => {
+        const currentHTML = document.getElementById("htmlInput").value;
+        if (currentHTML.trim() !== "") {
+          document.getElementById("htmlInput").value += "\n\n" + text;
+        } else {
+          document.getElementById("htmlInput").value = text; 
+        }
+      }).catch(err => {
+        alert("Failed to read clipboard content: " + err);
+      });
+    });
+
+    document.getElementById("parseBtn").addEventListener("click", parseHTML);
+
+    document.getElementById("downloadCsv").addEventListener("click", downloadCSV);
+
+    document.getElementById("searchBar").addEventListener("input", function () {
+      const query = this.value.toLowerCase();
+      const rows = document.querySelectorAll("#resultsTable tbody tr");
+
+      rows.forEach(row => {
+        const nameCell = row.querySelector("[data-column='name']").textContent.toLowerCase();
+        if (nameCell.includes(query)) {
+          row.style.display = "";
+        } else {
+          row.style.display = "none";
+        }
+      });
+    });
+
+    function parseHTML() {
+      const htmlInput = document.getElementById("htmlInput").value;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlInput, "text/html");
+
+      const tableBody = document.querySelector("#resultsTable tbody");
+      tableBody.innerHTML = ""; 
+
+      const products = doc.querySelectorAll('.puis-card-container, .sg-col-inner');
+      products.forEach(product => {
+        const name = product.querySelector('h2 a, h2 span')?.textContent.trim() || "N/A";
+        const stars = product.querySelector('.a-icon-alt')?.textContent.trim() || "N/A";
+        const price = product.querySelector('.a-price .a-offscreen')?.textContent.trim() || "N/A";
+        const image = product.querySelector('.s-image')?.src || "N/A";
+        let url = product.querySelector('a.a-link-normal')?.getAttribute('href') || "N/A";
+
+        if (url !== "N/A" && !url.startsWith("http")) {
+          url = amazonBaseUrl + url; 
+        }
+
+        const colorOptions = Array.from(product.querySelectorAll('.s-color-swatch-inner-circle-fill'))
+          .map(color => color.getAttribute('aria-label') || color.style.backgroundColor)
+          .join(", ") || "N/A";
+
+        const deliveryInfo = Array.from(product.querySelectorAll('.a-row a-color-base'))
+          .map(info => info.textContent.trim())
+          .join(", ") || "N/A";
+
+        const validFields = [name, stars, price, image, url].filter(field => field !== "N/A").length;
+        if (validFields < 3) return; 
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td class="border px-4 py-2" data-column="name">${name}</td>
+          <td class="border px-4 py-2" data-column="stars">${stars}</td>
+          <td class="border px-4 py-2" data-column="price">${price}</td>
+          <td class="border px-4 py-2" data-column="image">${image}</td>
+          <td class="border px-4 py-2" data-column="url">${url}</td>
+          <td class="border px-4 py-2" data-column="colors">${colorOptions}</td>
+          <td class="border px-4 py-2" data-column="delivery">${deliveryInfo}</td>
+        `;
+        tableBody.appendChild(row);
+      });
+
+      addDeleteFunctionality();
+    }
+
+    function addDeleteFunctionality() {
+      document.querySelectorAll(".deleteColumnBtn").forEach(btn => {
+        btn.addEventListener("click", function () {
+          const column = this.dataset.column;
+          const rows = document.querySelectorAll("#resultsTable tbody tr");
+          rows.forEach(row => {
+            const cell = row.querySelector(`[data-column="${column}"]`);
+            if (cell) {
+              cell.textContent = "";
+            }
+          });
+        });
+      });
+    }
+
+    function downloadCSV() {
+      const filename = document.getElementById("csvFileName").value || "output.csv";
+      const rows = Array.from(document.querySelectorAll("#resultsTable tbody tr"));
+      const csvContent = rows.map(row => {
+        const cols = row.querySelectorAll("td");
+        return Array.from(cols).map(col => `"${col.textContent}"`).join(",");
+      }).join("\n");
+
+      const csvBlob = new Blob([csvContent], { type: "text/csv" });
+      const url = URL.createObjectURL(csvBlob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  </script>
+</body>
+</html>
