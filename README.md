@@ -1,6 +1,8 @@
 # web-based-Amazon-scraper-tool-
 A web scraper tool to extract product data (name, price, ratings, images URL etc.) from Amazon HTML pages and export it as a CSV file.
 
+![My Image]([https://www.example.com/images/my-image.jpg](https://github.com/muhammadratulhasan/web-based-Amazon-scraper-tool-/blob/5cbf898fc51587a2ae0f1515a837abccf10b59f2/Screenshot-amazon-web-scraper.png))
+
 ## Features
 - Parse HTML input to extract product details.
 - Search and filter products by name.
